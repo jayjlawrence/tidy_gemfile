@@ -22,7 +22,7 @@ module TidyGemfile
     private
 
     def new_section?(prev, cur)
-      # Always separate blocks by a empty line. Blocks have entries > 1
+      # Always separate blocks by an empty line. Blocks have entries > 1
       # Keep non block source and ruby calls grouped, but separate them from gem calls
       prev.entries.size > 1 || cur.entries.size > 1 ||
         %w[source ruby].include?(prev.command) && cur.command == "gem"
@@ -48,6 +48,7 @@ module TidyGemfile
     end
 
     # TODO: This can use a small refactor
+    # Try to build groups of gems based on the options in `keys' with a count > 1.
     def group_gems(gems)
       pos  = 0
       keys = [:group, :source, :github, :path]
@@ -55,6 +56,7 @@ module TidyGemfile
       groups = {}
       groups[keys[pos]] = gems.group_by { |gem| gem.options[keys[pos]] }
 
+      # Now we try to build more groups
       while (pos+=1) < keys.size
         curkey = keys[pos]
         lastkey = keys[pos-1]
@@ -62,12 +64,13 @@ module TidyGemfile
 
         newgroup = []
 
-        # If there's only one try another group with the hope of gaining more
+        # Remove it and try another group with the hope that its count will be higher
         targets = groups[lastkey].select { |k, v| v.one? }.keys
         if targets.any?
           newgroup.concat( targets.flat_map { |k| groups[lastkey].delete(k) } )
         end
 
+        # If nil then some (or all) of the gem directives don't have the option in lastkey set
         if groups[lastkey].include?(nil)
           newgroup.concat(groups[lastkey].delete(nil))
         end
@@ -77,11 +80,12 @@ module TidyGemfile
         groups.delete(lastkey) unless groups[lastkey].any?
       end
 
+      # Like above but the option given by keys.last
       remaining = groups.include?(curkey) ? groups[curkey].delete(nil) : []
-      remaining.concat( create_entries(groups) )
+      remaining.concat( create_grouped_entries(groups) )
     end
 
-    def create_entries(gems)
+    def create_grouped_entries(gems)
       gems.flat_map do |command, groups|
         groups.map do |name, contents|
           contents.each { |entry| entry.options.delete(command) }

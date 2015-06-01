@@ -4,7 +4,7 @@ require "tidy_gemfile"
 ORDER = Hash.new(10).merge("source" => 1, "ruby" => 2, "gemspec" => 3, "gem" => 4, "group" => 5)
 QUOTE = Hash.new { |_, k| k }.merge("s" => "'", "d" => '"')
 
-options = { :quote => '"', :hash => "1.9", :order => ORDER }
+options = { :order => ORDER }
 
 getopt = OptionParser.new do |opt|
   opt.program_name = "TidyGemfile"

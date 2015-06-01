@@ -99,12 +99,9 @@ module TidyGemfile
     def method_add_block(node)
       command = node[0][1][1]
       lineno = lineno(node)
-      argv    = args_add_block(node[0][2][1])
 
-      children = node[1][2].map do |n|
-        entry = send(n[0], n[1..-1])
-        entry
-      end
+      argv = args_add_block(node[0][2][1])
+      children = node[1][2].map { |n| send(n[0], n[1..-1]) }
 
       GroupedEntry.new(command, argv, lineno, @config[command]||1, children)
     end
