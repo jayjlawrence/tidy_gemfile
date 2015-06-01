@@ -2,6 +2,8 @@
 
 `Gemfile` :shower:
 
+Your Gemfile is a mess and TidyGemfile is here to clean it up.
+
 ## Overview
 
 Before TidyGemfile:
@@ -29,11 +31,11 @@ gem 'spring',        group: "development"
 After:
 
 ```
-~ >tg Gemfile
+~ >tg -p Gemfile
 source "https://rubygems.org"
 
 gem "airbrake"
-gem "aws-s3", :require => "aws/s3"
+gem "aws-s3", require: "aws/s3"
 gem "ddex"
 
 group "development" do
@@ -52,6 +54,7 @@ end
 
 ### Caveats
 
+1. WIP
 1. Comments are discarded; for now, consider this additional tidying
 1. Some Bundler DSL directives and arguments may cause problems -I didn't read Ruby's BNF, just a bit of `Ripper` output
 
@@ -59,7 +62,13 @@ Hoping to fix these at some point...
 
 ## Usage
 
-...
+```
+usage: tg [options] Gemfile
+    -h, --hash-style STYLE           Hash style to use
+    -p, --print                      Print formatted Gemfile on stdout instead of overwriting it
+    -q, --quote-style STYLE          Quote style to use
+    -o, --order gem=1[,source=2,...] Order of Gemfile directives
+```
 
 ## Author
 
@@ -67,4 +76,4 @@ Skye Shaw [sshaw AT gmail.com]
 
 ## License
 
-Copyright © 2015 Skye Shaw. Released under the MIT License: www.opensource.org/licenses/MIT.
+Copyright © 2015 Skye Shaw. Released under [the MIT License](http://www.opensource.org/licenses/MIT).

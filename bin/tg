@@ -1,0 +1,43 @@
+require "optparse"
+require "tidy_gemfile"
+
+ORDER = Hash.new(10).merge("source" => 1, "ruby" => 2, "gemspec" => 3, "gem" => 4, "group" => 5)
+QUOTE = Hash.new { |_, k| k }.merge("s" => "'", "d" => '"')
+
+options = { :quote => '"', :hash => "1.9", :order => ORDER }
+
+getopt = OptionParser.new do |opt|
+  opt.program_name = "TidyGemfile"
+  opt.version = TidyGemfile::VERSION
+  opt.banner = "usage: tg [options] Gemfile"
+
+  opt.on "-h STYLE", "--hash-style", %w[1.8 1.9], "Hash style to use" do |s|
+    TidyGemfile::Entry.hash_style = s
+  end
+
+  opt.on "-p", "--print", "Print formatted Gemfile on stdout instead of overwriting it" do
+    options[:output] = $stdout
+  end
+
+  opt.on "-q STYLE", "--quote-style", %w[s d ' "], "Quote style to use" do |s|
+    TidyGemfile::Entry.quote_style = QUOTE[s]
+  end
+
+  opt.on "-o gem=1[,source=2,...]", "--order", Array, "Order of Gemfile directives" do |settings|
+    settings.each do |entry|
+      key, position = entry.split("=")
+      raise ArgumentError, "unknown order option: #{key}" unless ORDER.include?(key)
+      raise ArgumentError, "missing position: #{key}" unless position
+
+      ORDER[key] = position.to_i
+    end
+  end
+end
+
+getopt.parse!
+abort getopt.to_s unless ARGV.any?
+
+parser  = TidyGemfile::Parser.new(ORDER)
+entries = parser.parse(ARGV.shift)
+printer = TidyGemfile::Printer.new(options)
+printer.print(entries)
