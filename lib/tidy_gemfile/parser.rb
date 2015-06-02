@@ -1,4 +1,5 @@
 require "ripper"
+require "bundler"
 require "tidy_gemfile/entries"
 
 module TidyGemfile
@@ -8,9 +9,7 @@ module TidyGemfile
     end
 
     def parse(path)
-      tree = Ripper.sexp(File.read(path))
-      raise ParseError, "run `ruby -c' and correct the syntax errors" unless tree
-
+      tree = load_gemfile(path)
       tree[1].flat_map do |n|
         raise ParseError, "unknown directive #{n[0]}" unless respond_to?(n[0], true)
         send(n[0], n[1..-1])
@@ -18,6 +17,22 @@ module TidyGemfile
     end
 
     private
+
+    def load_gemfile(path)
+      gemfile = File.read(path)
+
+      begin
+        Bundler::Dsl.new.eval_gemfile(path, gemfile)
+      rescue Bundler::GemfileError => e
+        raise ParseError, e.message
+      end
+
+      # After the above we should not get nil
+      tree = Ripper.sexp(gemfile)
+      raise ParseError, "run `ruby -c' and correct the syntax errors" unless tree
+
+      tree
+    end
 
     def lineno(node)
       node[0][-1][0]
@@ -101,13 +116,9 @@ module TidyGemfile
       lineno = lineno(node)
 
       argv = args_add_block(node[0][2][1])
-      children = node[1][2].map { |n| send(n[0], n[1..-1]) }
+      children = node[1][2][0] == [:void_stmt] ? [] : node[1][2].map { |n| send(n[0], n[1..-1]) }
 
       GroupedEntry.new(command, argv, lineno, @config[command]||1, children)
-    end
-
-    def void_stmt(node)
-      []
     end
   end
 end
