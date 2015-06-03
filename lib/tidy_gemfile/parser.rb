@@ -6,14 +6,12 @@ module TidyGemfile
   class Parser
     def initialize(config)
       @config = config
+      @bundler = Bundler::Dsl.new
     end
 
     def parse(path)
       tree = load_gemfile(path)
-      tree[1].flat_map do |n|
-        raise ParseError, "unknown directive #{n[0]}" unless respond_to?(n[0], true)
-        send(n[0], n[1..-1])
-      end
+      tree[1].map { |n|  process(n[0], n[1..-1]) }
     end
 
     private
@@ -22,7 +20,7 @@ module TidyGemfile
       gemfile = File.read(path)
 
       begin
-        Bundler::Dsl.new.eval_gemfile(path, gemfile)
+        @bundler.eval_gemfile(path, gemfile)
       rescue Bundler::GemfileError => e
         raise ParseError, e.message
       end
@@ -34,6 +32,11 @@ module TidyGemfile
       tree
     end
 
+    def process(action, args)
+      raise ParseError, "statements of type '#{action}' are not supported" unless respond_to?(action, true)
+      send(action, args)
+    end
+
     def lineno(node)
       node[0][-1][0]
     end
@@ -41,10 +44,6 @@ module TidyGemfile
     def scalar(node)
       s = node[1][1]
       node[0] == :symbol ? s.to_sym : s
-    end
-
-    def array(node)
-      node.map { |e| scalar(e[1]) }
     end
 
     def options(nodes)
@@ -56,7 +55,7 @@ module TidyGemfile
         key = node[1][0] == :@label ? node[1][1][0..-2].to_sym : scalar(node[1][1])
         val = case node[2][0]
               when :array
-                array(node[2][1])
+                node[2][1].map { |e| e[1] }
               when :@int
                 node[2][1].to_i
               when :@float
@@ -67,29 +66,6 @@ module TidyGemfile
 
         options[key] = val
       end
-    end
-
-    # URL can have user/pass
-    def source(node, lineno)
-      # ... unless node[0][0] == :args_add_block
-      Entry.new("source", scalar(node[0][1][0][1]), lineno, @config["source"])
-    end
-
-    def ruby(node, lineno)
-      Entry.new("ruby", scalar(node[0][1][0][1]), lineno, @config["ruby"])
-    end
-
-    def gem(node, lineno)
-      # ... unless node[0][0] == :args_add_block
-      argv = node[0][1].map do |n|
-        if n[0] == :bare_assoc_hash
-          options(n[1])
-        else
-          scalar(n[1])
-        end
-      end
-
-      Entry.new("gem", argv, lineno, @config["gem"])
     end
 
     def args_add_block(node)
@@ -104,21 +80,32 @@ module TidyGemfile
 
     # [:@ident, "group", [5, 0]], [:args_add_block, ... ]
     def command(node)
-      function = node[0][1]
-      lineno   = lineno(node)
+      command = node[0][1]
+      lineno  = lineno(node)
+      argv    = []
 
-      send(function, node[1..-1], lineno)
+      if node.size > 1 && node[1][0] == :args_add_block
+        # Ignore last element which is (always?) false
+        argv = args_add_block(node[1][1])
+      end
+
+      Entry.new(command, argv, lineno, @config[command])
     end
 
-    # source, group or path
+    alias :vcall :command
+
+    # [:fcall, [:@ident, "group", [28, 0]]]
+    def method_add_arg(node)
+      # Massage it to work with command
+      command([node[0][1]])
+    end
+
     def method_add_block(node)
-      command = node[0][1][1]
-      lineno = lineno(node)
+      entry    = process(node[0][0], node[0][1..-1])
+      argv     = node[0][0] == :method_add_arg ? [] : args_add_block(node[0][2][1])
+      children = node[1][2] == [[:void_stmt]]  ? [] : node[1][2].map { |n| process(n[0], n[1..-1]) }
 
-      argv = args_add_block(node[0][2][1])
-      children = node[1][2][0] == [:void_stmt] ? [] : node[1][2].map { |n| send(n[0], n[1..-1]) }
-
-      GroupedEntry.new(command, argv, lineno, @config[command]||1, children)
+      GroupedEntry.new(entry.command, entry.argv, entry.lineno, entry.priority, children)
     end
   end
 end

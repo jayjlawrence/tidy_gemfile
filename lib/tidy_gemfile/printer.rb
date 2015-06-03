@@ -23,9 +23,10 @@ module TidyGemfile
 
     def new_section?(prev, cur)
       # Always separate blocks by an empty line. Blocks have entries > 1
-      # Keep non block source and ruby calls grouped, but separate them from gem calls
+      # Keep source calls without blocks and ruby calls grouped, but separate them from gem calls
       prev.entries.size > 1 || cur.entries.size > 1 ||
-        %w[source ruby].include?(prev.command) && cur.command == "gem"
+        %w[source ruby].include?(prev.command) && cur.command == "gem" ||
+        cur.command == "gemspec" || prev.command == "gemspec"
     end
 
     def normalize_entries(entries)
