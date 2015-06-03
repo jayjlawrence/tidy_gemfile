@@ -56,7 +56,7 @@ module TidyGemfile
       keys = [:group, :source, :github, :path]
 
       groups = {}
-      groups[keys[pos]] = gems.group_by { |gem| gem.options[keys[pos]] }
+      groups[keys[pos]] = gems.group_by { |gem| gem.options[keys[pos]].to_s }
 
       # Now we try to build more groups
       while (pos+=1) < keys.size
@@ -72,18 +72,18 @@ module TidyGemfile
           newgroup.concat( targets.flat_map { |k| groups[lastkey].delete(k) } )
         end
 
-        # If nil then some (or all) of the gem directives don't have the option in lastkey set
-        if groups[lastkey].include?(nil)
-          newgroup.concat(groups[lastkey].delete(nil))
+        # If "" then some (or all) of the gem directives don't have the option in lastkey set
+        if groups[lastkey].include?("")
+          newgroup.concat(groups[lastkey].delete(""))
         end
 
-        groups[curkey] = newgroup.group_by { |gem| gem.options[curkey] }
+        groups[curkey] = newgroup.group_by { |gem| gem.options[curkey].to_s }
         groups.delete(curkey)  unless groups[curkey].any?
         groups.delete(lastkey) unless groups[lastkey].any?
       end
 
       # Like above but the option given by keys.last
-      remaining = groups.include?(curkey) ? groups[curkey].delete(nil) : []
+      remaining = groups.include?(curkey) ? groups[curkey].delete("") : []
       remaining.concat( create_grouped_entries(groups) )
     end
 

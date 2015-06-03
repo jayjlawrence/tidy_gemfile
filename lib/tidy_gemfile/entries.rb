@@ -9,14 +9,21 @@ module TidyGemfile
     attr :command, :argv, :options, :lineno, :priority
 
     class << self
-      attr_writer :hash_style, :quote_style
-
       def hash_style
-        @hash_style ||= DEFAULT_HASH_STYLE
+        @@hash_style ||= DEFAULT_HASH_STYLE
       end
 
+      def hash_style=(style)
+        @@hash_style = style
+      end
+
+      def quote_style=(style)
+        @@quote_style = style
+      end
+
+
       def quote_style
-        @quote_style ||= DEFAULT_QUOTE_STYLE
+        @@quote_style ||= DEFAULT_QUOTE_STYLE
       end
     end
 
