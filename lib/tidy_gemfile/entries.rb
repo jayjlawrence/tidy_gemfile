@@ -61,7 +61,7 @@ module TidyGemfile
     private
 
     def sort_by(entry)
-      sorter = [entry.priority, entry.command]
+      sorter = [entry.priority, entry.command.to_s]
       # TODO: rethink this, though if they're diff types sort will error
       sorter.concat(entry.argv.map(&:to_s))
       sorter.concat(options.to_a)

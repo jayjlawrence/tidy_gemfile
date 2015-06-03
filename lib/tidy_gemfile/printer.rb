@@ -25,7 +25,8 @@ module TidyGemfile
       # Always separate blocks by an empty line. Blocks have entries > 1
       # Keep source calls without blocks and ruby calls grouped, but separate them from gem calls
       prev.entries.size > 1 || cur.entries.size > 1 ||
-        %w[source ruby].include?(prev.command) && cur.command == "gem" ||
+        %w[source ruby].include?(prev.command) && cur.command  == "gem"  ||
+        %w[source ruby].include?(cur.command)  && prev.command == "gem" ||
         cur.command == "gemspec" || prev.command == "gemspec"
     end
 
@@ -90,7 +91,7 @@ module TidyGemfile
       gems.flat_map do |command, groups|
         groups.map do |name, contents|
           contents.each { |entry| entry.options.delete(command) }
-          GroupedEntry.new(command, name, nil, @config[:order][command], contents.sort)
+          GroupedEntry.new(command, name, nil, @config[:order][command.to_s], contents.sort)
         end
       end
     end

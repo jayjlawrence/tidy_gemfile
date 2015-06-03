@@ -1,4 +1,5 @@
 require "optparse"
+require "fileutils"
 require "tidy_gemfile"
 
 ORDER = Hash.new(10).merge("source" => 1, "ruby" => 2, "gemspec" => 3, "gem" => 4, "group" => 5)
@@ -37,7 +38,17 @@ end
 getopt.parse!
 abort getopt.to_s unless ARGV.any?
 
+gemfile = ARGV.shift
 parser  = TidyGemfile::Parser.new(ORDER)
-entries = parser.parse(ARGV.shift)
+entries = parser.parse(gemfile)
+
+unless options.include?(:output)
+  backup = sprintf "%s.%s", gemfile, Time.now.strftime("%Y%m%d")
+  FileUtils.cp(gemfile, backup)
+  options[:output] = File.open(gemfile, "w")
+end
+
 printer = TidyGemfile::Printer.new(options)
 printer.print(entries)
+
+options[:output].close unless options[:output] == $stdout

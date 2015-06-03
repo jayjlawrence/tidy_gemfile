@@ -11,7 +11,7 @@ module TidyGemfile
 
     def parse(path)
       tree = load_gemfile(path)
-      tree[1].map { |n|  process(n[0], n[1..-1]) }
+      tree[1].map { |n| process(n[0], n[1..-1]) }
     end
 
     private
