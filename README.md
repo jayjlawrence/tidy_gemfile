@@ -56,6 +56,7 @@ end
 
 1. WIP
 1. Comments are discarded; for now, consider this additional tidying
+1. Sorry, it doesn't tidy Gemfiles with branching
 1. Some Bundler DSL directives and arguments may cause problems -I didn't read Ruby's BNF, just a bit of `Ripper` output
 
 Hoping to fix these at some point...
