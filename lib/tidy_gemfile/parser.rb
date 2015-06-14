@@ -55,7 +55,8 @@ module TidyGemfile
         key = node[1][0] == :@label ? node[1][1][0..-2].to_sym : scalar(node[1][1])
         val = case node[2][0]
               when :array
-                node[2][1].map { |e| e[1] }
+                # Can be a Hash, Array, etc...
+                node[2][1].map { |e| scalar(e[1]) }
               when :@int
                 node[2][1].to_i
               when :@float

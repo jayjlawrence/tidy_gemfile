@@ -30,7 +30,7 @@ module TidyGemfile
     def initialize(command, argv, lineno, priority)
       @command = command
       @argv = Array(argv)
-      @options = @argv.last.is_a?(Hash) ? @argv.pop : {}
+      @options = normalize_options(@argv.last.is_a?(Hash) ? @argv.pop : {})
       @lineno = lineno
       @priority = priority
     end
@@ -61,11 +61,25 @@ module TidyGemfile
     end
 
     def quote(s)
-      quote = self.class.quote_style
-      s.is_a?(Symbol) ? ":#{s}" : sprintf("%s%s%s", quote, s, quote)
+      case s
+      when Symbol
+        ":#{s}"
+      when Array
+        s
+      else
+        quote = self.class.quote_style
+        sprintf("%s%s%s", quote, s, quote)
+      end
     end
 
     private
+
+    def normalize_options(options)
+      options.keys.each do |key|
+        options[key.to_sym] = options.delete(key) unless key.is_a?(Symbol)
+      end
+      options
+    end
 
     def sort_by(entry)
       sorter = [entry.priority, entry.command.to_s]
@@ -73,6 +87,11 @@ module TidyGemfile
       sorter.concat(entry.argv.map(&:to_s))
       sorter.concat(options.to_a)
       #sorter << lineno
+    end
+
+    def initialize_copy(c)
+      @argv = argv.dup
+      @options = options.dup
     end
   end
 
@@ -84,8 +103,16 @@ module TidyGemfile
       @children = children
     end
 
-    def each(&block)
-      children.each(&block)
+    def each
+      # TODO: no block
+      children.each do |child|
+
+        # TODO: Bundler's behavior if a directive contains the option defined by the block?
+        child = child.dup
+        child.options.merge!(options)
+        child.options[command.to_sym] = argv.one? ? argv.first : argv
+        yield child
+      end
     end
 
     def to_s

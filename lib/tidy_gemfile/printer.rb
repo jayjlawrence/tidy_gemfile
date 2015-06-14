@@ -31,21 +31,28 @@ module TidyGemfile
     end
 
     def normalize_entries(entries)
-      propagate_options(entries)
       groups = entries.flat_map { |e| e.entries }.group_by { |e| e.command.to_sym }
       groups[:gem] = group_gems(groups[:gem]) if groups.include?(:gem)
       groups
     end
 
-    def propagate_options(entries)
-      entries.each do |entry|
-        entry.each do |e|
-          if entry.entries.size > 1
-            # TODO: don't override e's keys with entry's
-            e.options.merge!(entry.options)
-            e.options[entry.command.to_sym] = entry.argv.one? ? entry.argv.first : entry.argv
-          end
-        end
+    # Normalize group names so that :test, "test", and ['test'] are treated the same
+    def group_name_option(options, key)
+      val = options[key]
+
+      if val.is_a?(Array)
+        val.map!(&:to_sym)
+        val.sort!
+        val = val[0] if val.one?
+      end
+
+      val.respond_to?(:to_sym) ? val.to_sym : val
+    end
+
+    def normalize_groups(gems)
+      gems.each do |gem|
+        next unless gem.options.include?(:groups)
+        gem.options[:group] = Array(gem.options[:group]).concat(Array(gem.options.delete(:groups)))
       end
     end
 
@@ -55,8 +62,10 @@ module TidyGemfile
       pos  = 0
       keys = [:group, :source, :github, :path]
 
+      normalize_groups(gems)
+
       groups = {}
-      groups[keys[pos]] = gems.group_by { |gem| gem.options[keys[pos]].to_s }
+      groups[keys[pos]] = gems.group_by { |gem| group_name_option(gem.options, keys[pos]) }
 
       # Now we try to build more groups
       while (pos+=1) < keys.size
@@ -72,18 +81,18 @@ module TidyGemfile
           newgroup.concat( targets.flat_map { |k| groups[lastkey].delete(k) } )
         end
 
-        # If "" then some (or all) of the gem directives don't have the option in lastkey set
-        if groups[lastkey].include?("")
-          newgroup.concat(groups[lastkey].delete(""))
+        # If nil then some (or all) of the gem directives don't have the option in lastkey set
+        if groups[lastkey].include?(nil)
+          newgroup.concat(groups[lastkey].delete(nil))
         end
 
-        groups[curkey] = newgroup.group_by { |gem| gem.options[curkey].to_s }
+        groups[curkey] = newgroup.group_by { |gem| gem.options[curkey] }
         groups.delete(curkey)  unless groups[curkey].any?
         groups.delete(lastkey) unless groups[lastkey].any?
       end
 
       # Like above but the option given by keys.last
-      remaining = groups.include?(curkey) ? groups[curkey].delete("") : []
+      remaining = groups.include?(curkey) ? groups[curkey].delete(nil) : []
       remaining.concat( create_grouped_entries(groups) )
     end
 
